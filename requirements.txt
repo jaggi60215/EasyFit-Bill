@@ -60,3 +60,5 @@ urllib3==2.2.1
 virtualenv==20.17.1
 watchdog==4.0.0
 yarl==1.9.4
+reportlab==4.2.2
+fpdf==1.7.2
