@@ -90,7 +90,7 @@ if 'show_sales' not in st.session_state:
 if 'show_cust' not in st.session_state:
     st.session_state.show_cust = 0
 if 'show_dash' not in st.session_state:
-    st.session_state.show_dash = 0
+    st.session_state.show_dash = 1
 if 'search_cust' not in st.session_state:
     st.session_state.search_cust = 0
 if 'measurement_data' not in st.session_state:
