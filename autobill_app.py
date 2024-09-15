@@ -12,6 +12,8 @@ import streamlit_authenticator as stauth
 from fpdf import FPDF
 import io
 import os
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
 st.set_page_config(page_title="EasyFit Bill", page_icon=":dress:", layout="wide")
 
@@ -129,9 +131,6 @@ def generate_pdf(user_data):
 
     return pdf_output
 
-
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
 
 # Function to generate PDF using reportlab
 def generate_reportlab_pdf(user_data):
