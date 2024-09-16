@@ -57,7 +57,12 @@ credentials = {}
 credentials["usernames"] = temp_dict
 
 # App Title
-st.title("Tailor Measurement Form")
+title_cols = st.columns([2,6,2])
+with title_cols[1]:
+    st.markdown("<h1 style='color: red; font-family: Comic Sans MS;'>Saaz-The Designer Boutique</h1>", unsafe_allow_html=True)
+    # st.title("Saaz-The Designer Boutique",)
+
+# st.title("Tailor Measurement Form")
 
 cols=st.columns(3)
 with cols[1]:
@@ -95,8 +100,13 @@ if 'search_cust' not in st.session_state:
     st.session_state.search_cust = 0
 if 'measurement_data' not in st.session_state:
     st.session_state.measurement_data = {}
-if 'billing_info' not in st.session_state:
-    st.session_state.billing_info = {}
+if 'preview' not in st.session_state:
+    st.session_state.preview = 0
+if 'submit' not in st.session_state:
+    st.session_state.submit = 0
+if 'srch1' not in st.session_state:
+    st.session_state.srch1 = 0
+
 
 def reset_customer():
     st.session_state.measurement_data = {}
@@ -246,11 +256,23 @@ def generate_reportlab_pdf(user_data):
     buffer.seek(0)
     return buffer.getvalue()
 
-def generate_uuid(prefix="CUST"):
-    # Get the current timestamp in milliseconds
-    timestamp = int(time.time() * 1000)
-    # Generate a unique ID by combining prefix and timestamp
-    return f"{prefix}-{timestamp}"
+def generate_uuid():
+    letters = ''.join(random.choices(string.ascii_uppercase, k=2))
+    # Generate four random digits
+    digits = ''.join(random.choices(string.digits, k=4))
+    # Combine the letters and digits to form the user ID
+    uuid = letters + digits
+    return uuid
+
+
+# def search_func(search_option):
+#     if search_option == 'Contact No':
+#         return '''phone_number '''
+#     if search_option == 'Order Id':
+#         return '''cust_id '''
+#     if search_option == 'Name':
+#         return '''name '''
+
 
 def main():
 
@@ -297,6 +319,85 @@ def main():
      balance_payment FLOAT )'''.format(user=username)
     cursor.execute(cmd1)
 
+    # Create a radio button with horizontal layout
+    search_option = st.radio(
+        "Search Customer by:",
+        ('Contact No', 'Order Id', 'Name'), 
+        horizontal=True)
+
+    if search_option == 'Contact No':
+        filter_col = '''lower(phone_number) '''
+    if search_option == 'Order Id':
+        filter_col = '''lower(cust_id) '''
+    if search_option == 'Name':
+        filter_col = '''lower(name) '''
+
+    search_item = st.text_input("Enter {s}".format(s=search_option))
+
+    coll = st.columns([3,4,3])
+
+    with coll[0]:
+        srch = st.button("Search")
+    with coll[2]:
+        if st.button("Take New Measurement"):
+            st.session_state.srch1 = 1
+            st.session_state.preview = 0
+            st.session_state.submit = 0
+                        # Cust id generator
+            cursor.execute("select distinct cust_id from customer_{user}".format(user=username))
+            res = cursor.fetchall()
+
+            cust_id = generate_uuid()
+            while (cust_id in res):
+                cust_id = generate_uuid()
+            st.session_state.measurement_data['cust_id'] = cust_id
+
+
+    if srch:
+        if search_item != "":
+            # st.write('''select * from customer_{user} where {filter_col} like lower("%{search_item}%") '''.format(user=username,filter_col=filter_col,search_item=search_item))
+            cursor.execute('''select * from customer_{user} where {filter_col} like lower("%{search_item}%") '''.format(user=username,filter_col=filter_col,search_item=search_item))
+            res_srch = cursor.fetchall()
+            st.table(pd.DataFrame(res_srch, columns=["cust_id",
+                                                "name", 
+                                                "phone_number", 
+                                                "email", 
+                                                "date",
+                                                "delivery_date",
+                                                "address", 
+                                                "garment_type", 
+                                                "fabric_type",
+                                                "fabric_color_pattern",
+                                                "lining_fabric",
+                                                "button_style_color",
+                                                "design_preferences", 
+                                                "measurement_metric",
+                                                "Chest",
+                                                "Waist",
+                                                "Hips",
+                                                "Shoulders",
+                                                "Neck",
+                                                "Right Arm",
+                                                "Left Arm",
+                                                "Sleeve Length",
+                                                "Bicep",
+                                                "Wrist",
+                                                "Jacket Length",
+                                                "Back Length",
+                                                "Trouser Waist",
+                                                "Trouser Inseam",
+                                                "Thigh Circumference",
+                                                "Knee Circumference",
+                                                "Ankle Circumference",
+                                                "Height",
+                                                "reference_garments",
+                                                "total_bill",
+                                                "advance_payment",
+                                                "balance_payment"]))
+
+
+
+
     st.sidebar.write("Welcome, {u} ".format(u=username))
     with st.container():
         show_dash = st.sidebar.button("My Dashboard", use_container_width=True, on_click=show_dash_toggle)
@@ -304,11 +405,9 @@ def main():
         show_cust = st.sidebar.button("New Customer", use_container_width=True, on_click=show_cust_toggle)
         search_cust = st.sidebar.button("Search Customer", use_container_width=True, on_click=search_cust_toggle)
 
+
     # cmd2 = '''CREATE TABLE IF NOT EXISTS order_{user}(invoice_no TEXT, product TEXT, quantity INTEGER, bill_date DATE)'''.format(user=username)
     # cursor.execute(cmd2)
-
-    cursor.execute("select distinct cust_id from customer_{user}".format(user=username))
-    res = cursor.fetchall()
 
     maincols = st.columns([9,1])
     with maincols[1]:
@@ -354,18 +453,11 @@ def main():
                                             "advance_payment",
                                             "balance_payment"]))
 
-    if (st.session_state.show_dash > 0) or (st.session_state.show_cust > 0):
+    if ((st.session_state.show_dash > 0) or (st.session_state.show_cust > 0)) and (st.session_state.srch1==True):
         if st.session_state.step == 1:
             # Customer Information
             with maincols[0]:
                 st.header("Customer Information")
-            
-            cust_id = generate_uuid()
-            while (cust_id in res):
-                # st.write("1")
-                cust_id = generate_uuid()
-
-            st.write("Customer Id - {}".format(cust_id))
             
             if "name" not in st.session_state.measurement_data:
                 name = st.text_input("Name")
@@ -397,7 +489,6 @@ def main():
             else:
                 delivery_date = st.date_input("Delivery Date", value=datetime.strptime(f"{st.session_state.measurement_data['delivery_date']}", "%Y-%m-%d").date())
 
-            st.session_state.measurement_data['cust_id'] = cust_id
             st.session_state.measurement_data['name'] = name
             st.session_state.measurement_data['phone_number'] = phone_number
             st.session_state.measurement_data['email'] = email
@@ -581,88 +672,96 @@ def main():
             with maincols[0]:
                 st.header("Billing")
             if "total_bill" not in st.session_state.measurement_data:
-                total_bill = st.number_input("Total Bill Amount", min_value=0.0, step=0.01)
+                total_bill = st.number_input("Total Bill Amount", min_value=0.0, step=100.00)
             else:
-                total_bill = st.number_input("Total Bill Amount", min_value=0.0, step=0.01, value=float(f"{st.session_state.measurement_data['total_bill']}"))
+                total_bill = st.number_input("Total Bill Amount", min_value=0.0, step=100.00, value=float(f"{st.session_state.measurement_data['total_bill']}"))
 
             if "advance_payment" not in st.session_state.measurement_data:
-                advance_payment = st.number_input("Advance Payment", min_value=0.0, step=0.01)
+                advance_payment = st.number_input("Advance Payment", min_value=0.0, step=100.00)
             else:
-                advance_payment = st.number_input("Advance Payment", min_value=0.0, step=0.01, value=float(f"{st.session_state.measurement_data['advance_payment']}"))
+                advance_payment = st.number_input("Advance Payment", min_value=0.0, step=100.00, value=float(f"{st.session_state.measurement_data['advance_payment']}"))
 
-            st.session_state.measurement_data['total_bill'] = total_bill        
+            st.session_state.measurement_data['total_bill'] = total_bill
             st.session_state.measurement_data['advance_payment'] = advance_payment
             balance_payment = total_bill - advance_payment
             st.session_state.measurement_data['balance_payment'] = balance_payment
             st.write(f"Balance Payment: {balance_payment}")
+
             # Navigation buttons
             nexcols = st.columns([1,1,8])
             with nexcols[0]:
                 st.button("Back", on_click=prev_step)
 
             # Submit Button
-            if st.button("Submit"):
-                st.success("Form Submitted Successfully!")
+            if st.button("Preview"):
+                st.session_state.preview = 1
+
+            if st.session_state.preview == 1:
                 # Combine measurement and billing data
                 user_data = st.session_state.measurement_data
 
-                cursor.execute('''INSERT INTO customer_{} VALUES("{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}")'''.format(username,user_data["cust_id"],
-                                                                                                user_data["name"], 
-                                                                                                user_data["phone_number"], 
-                                                                                                user_data["email"], 
-                                                                                                user_data["date"],
-                                                                                                user_data["delivery_date"],
-                                                                                                user_data["address"], 
-                                                                                                user_data["garment_type"], 
-                                                                                                user_data["fabric_type"],
-                                                                                                user_data["fabric_color_pattern"],
-                                                                                                user_data["lining_fabric"],
-                                                                                                user_data["button_style_color"],
-                                                                                                user_data["design_preferences"], 
-                                                                                                user_data["measurement_metric"],
-                                                                                                user_data["Chest"],
-                                                                                                user_data["Waist"],
-                                                                                                user_data["Hips"],
-                                                                                                user_data["Shoulders"],
-                                                                                                user_data["Neck"],
-                                                                                                user_data["Right Arm"],
-                                                                                                user_data["Left Arm"],
-                                                                                                user_data["Sleeve Length"],
-                                                                                                user_data["Bicep"],
-                                                                                                user_data["Wrist"],
-                                                                                                user_data["Jacket Length"],
-                                                                                                user_data["Back Length"],
-                                                                                                user_data["Trouser Waist"],
-                                                                                                user_data["Trouser Inseam"],
-                                                                                                user_data["Thigh Circumference"],
-                                                                                                user_data["Knee Circumference"],
-                                                                                                user_data["Ankle Circumference"],
-                                                                                                user_data["Height"],
-                                                                                                user_data["reference_garments"],
-                                                                                                user_data["total_bill"],
-                                                                                                user_data["advance_payment"],
-                                                                                                user_data["balance_payment"]))
-                conn.commit()
-
-                # Confirmation message and display of saved data
-                st.write("Here is the summary of your details:")
+                # Preview
+                st.write("Order summary:")
                 st.table(user_data)
-                # pdf = generate_pdf(user_data)
-                # st.write(pdf)
-                # pdf_bytes = pdf.read()
-                # st.write(pdf_bytes)
-                # st.download_button(label="Download as PDF", data=pdf_bytes, file_name="user_details.pdf", mime="application/pdf")
-                # Generate the PDF
-                pdf_bytes = generate_reportlab_pdf(user_data)
 
-                # Create a download button for the PDF
-                st.download_button(
-                    label="Download PDF",
-                    data=pdf_bytes,
-                    file_name="receipt.pdf",
-                    mime="application/pdf"
-                )
+                if st.button("Submit"):
+                    st.session_state.submit = 1
+                if st.session_state.submit == 1:
+                    st.success("Order Placed Successfully!")
+                    user_data = st.session_state.measurement_data
 
+                    # database entry
+                    cursor.execute('''INSERT INTO customer_{} VALUES("{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}")'''.format(username,user_data["cust_id"],
+                                                                                                    user_data["name"], 
+                                                                                                    user_data["phone_number"], 
+                                                                                                    user_data["email"], 
+                                                                                                    user_data["date"],
+                                                                                                    user_data["delivery_date"],
+                                                                                                    user_data["address"], 
+                                                                                                    user_data["garment_type"], 
+                                                                                                    user_data["fabric_type"],
+                                                                                                    user_data["fabric_color_pattern"],
+                                                                                                    user_data["lining_fabric"],
+                                                                                                    user_data["button_style_color"],
+                                                                                                    user_data["design_preferences"], 
+                                                                                                    user_data["measurement_metric"],
+                                                                                                    user_data["Chest"],
+                                                                                                    user_data["Waist"],
+                                                                                                    user_data["Hips"],
+                                                                                                    user_data["Shoulders"],
+                                                                                                    user_data["Neck"],
+                                                                                                    user_data["Right Arm"],
+                                                                                                    user_data["Left Arm"],
+                                                                                                    user_data["Sleeve Length"],
+                                                                                                    user_data["Bicep"],
+                                                                                                    user_data["Wrist"],
+                                                                                                    user_data["Jacket Length"],
+                                                                                                    user_data["Back Length"],
+                                                                                                    user_data["Trouser Waist"],
+                                                                                                    user_data["Trouser Inseam"],
+                                                                                                    user_data["Thigh Circumference"],
+                                                                                                    user_data["Knee Circumference"],
+                                                                                                    user_data["Ankle Circumference"],
+                                                                                                    user_data["Height"],
+                                                                                                    user_data["reference_garments"],
+                                                                                                    user_data["total_bill"],
+                                                                                                    user_data["advance_payment"],
+                                                                                                    user_data["balance_payment"]))
+                    conn.commit()
+
+                    # Generate the PDF
+                    pdf_bytes = generate_reportlab_pdf(user_data)
+
+                    # Create a download button for the PDF
+                    st.download_button(
+                        label="Download PDF",
+                        data=pdf_bytes,
+                        file_name="receipt.pdf",
+                        mime="application/pdf"
+                    )
+
+                    st.button('📲 Send Bill on WhatsApp', disabled=True)
+                
 ## Login authentication
 if authentication_status == False:
     st.error('Username/password is incorrect')
