@@ -126,6 +126,7 @@ def show_sales_toggle():
     st.session_state.show_sales = 1
 
 def show_cust_toggle():
+    st.session_state.step = 1
     st.session_state.show_dash = 0
     st.session_state.search_cust = 0
     st.session_state.show_cust = 1
@@ -138,6 +139,7 @@ def search_cust_toggle():
     st.session_state.show_sales = 0
 
 def show_dash_toggle():
+    st.session_state.step = 1
     st.session_state.show_dash = 1
     st.session_state.search_cust = 0
     st.session_state.show_cust = 0
